@@ -1,6 +1,5 @@
-# -------------------------------
 # Deployment for app1-nginx
-# -------------------------------
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
