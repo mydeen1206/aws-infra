@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: frontend-proxy
   annotations:
+    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     # Health Check Settings
@@ -25,4 +26,4 @@ spec:
               service:
                 name: opentelemetry-demo-frontendproxy
                 port:
-                  number: 8080
+                  number: 80
