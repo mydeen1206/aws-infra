@@ -1,10 +1,42 @@
 AWS Load Balancer Controller Install on AWS EKSAWS Load Balancer Controller Install on AWS EKS
+Create IAM Policy and make a note of Policy ARN
+Create IAM Role and k8s Service Account and bound them together
+Install AWS Load Balancer Controller using HELM3 CLI
+Understand IngressClass Concept and create a default Ingress Class
 
+https://github.com/kubernetes-sigs/aws-load-balancer-controller
 +++++++++++++++++++++++
 
 ALB controller creation:
+#CLUSTER Creation:
+eksctl create cluster --name=eksdemo1 \
+                      --region=us-east-1 \
+                      --zones=us-east-1a,us-east-1b \
+                      --version="1.21" \
+                      --without-nodegroup 
+
+eksctl create nodegroup --cluster=eksdemo1 \
+                        --region=us-east-1 \
+                        --name=eksdemo1-ng-public \
+                        --node-type=t3.medium \
+                        --nodes-min=2 \
+                        --nodes-max=4 \
+                        --node-volume-size=20 \
+                        --ssh-access \
+                        --ssh-public-key=eks-terraform-key \
+                        --managed \
+                        --asg-access \
+                        --external-dns-access \
+                        --full-ecr-access \
+                        --appmesh-access \
+                        --alb-ingress-access \
+                        --node-private-networking       
 IAM policy:
 
+eksctl utils associate-iam-oidc-provider \
+    --region region-code \
+    --cluster <cluter-name> \
+    --approve
 arn::
 arn:aws:iam::979090212156:policy/AWSLoadBalancerControllerIAMPolicy
 
@@ -17,6 +49,22 @@ eksctl create iamserviceaccount \
   --override-existing-serviceaccounts \
   --approve
   
+  # Verfy EKS Cluster
+eksctl get cluster
+
+# Verify EKS Node Groups
+eksctl get nodegroup --cluster=eks-demo-terraform
+
+# Verify if any IAM Service Accounts present in EKS Cluster
+eksctl get iamserviceaccount --cluster=eks-demo-terraform
+
+# Configure kubeconfig for kubectl
+eksctl get cluster # TO GET CLUSTER NAME
+aws eks --region <region-code> update-kubeconfig --name <cluster_name>
+aws eks --region us-east-1 update-kubeconfig --name eks-demo-terraform
+
+# Verify EKS Nodes in EKS Cluster using kubectl
+kubectl get nodes
   ++++++++++
   
 HELM install Application Loadbanacer controller
