@@ -1,0 +1,95 @@
+check EKS release
+curl -s https://docs.aws.amazon.com/eks/latest/userguide/doc-history.rss | grep "<title>Kubernetes version"
+
+Create EKS Cluster
+eksctl create cluster --version=1.14 --name suhas-eks-test --region us-east-1 --zones us-east-1a,us-east-1b --node-type t2.medium --nodes 2 --ssh-access=true --ssh-public-key basarkod-test
+
+Without any nodeGroup - Public
+eksctl create cluster --without-nodegroup --version=1.14 --name delete-me --vpc-public-subnets=subnet-123,subnet-456
+
+Without any nodeGroup - PRIVATE
+eksctl create cluster --without-nodegroup --version=1.14 --name delete-me --vpc-public-subnets=subnet-abc,subnet-xyz
+
+Scale the nodes to 2
+eksctl scale nodegroup --cluster delete-me --name ng-fe0ad48b --nodes 2 --region us-east-1
+
+2 public Subnets
+eksctl create cluster --version=1.14 --name suhas-eks-test  --vpc-public-subnets=subnet-123,subnet-456 --node-type t2.medium --nodes 2 --ssh-access=true --ssh-public-key test-key
+
+To create a cluster using 2x private and 2x public subnets
+eksctl create cluster --vpc-private-subnets=subnet-xxx,subnet-xxx --vpc-public-subnets=subnet-xxx,subnet-xxx --node-type t2.medium --nodes 2 --ssh-access=true --ssh-public-key basarkod-test
+
+Get list of workerNodes belonging to a specific EKS Cluster created by eksctl (modify the tags for clusters launched via CFN)
+cluster_name="suhas-eks" && region="us-east-1"
+
+aws ec2 describe-instances --region ${region} --query "Reservations[*].Instances[*].{PublicDnsName:PublicDnsName,PrivateDnsName:PrivateDnsName,PublicIP:PublicIpAddress,Instance:InstanceId,Subnet:SubnetId,ASGName:Tags[?Key=='aws:autoscaling:groupName']|[0].Value,NodeGroupName:Tags[?Key=='alpha.eksctl.io/nodegroup-name']|[0].Value,CFNStack:Tags[?Key=='aws:cloudformation:stack-id']|[0].Value}" --filters "Name=tag:kubernetes.io/cluster/${cluster_name},Values=owned"
+
+Get ENI's of a specific instance
+aws ec2 describe-instances --instance-ids i-0c34061da1f8bf9ec --query "Reservations[*].Instances[*].NetworkInterfaces[*].{ENI:NetworkInterfaceId}"
+
+Get InstanceID using pod's ip
+aws ec2 describe-instances --filters  Name=network-interface.addresses.private-ip-address,Values=<pod_ip>
+
+Get ExternalIPs of all nodes
+kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' 
+
+Check which nodes are ready
+JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}' && kubectl get nodes -o jsonpath="$JSONPATH" | grep "Ready=True"
+
+Get Pods on a specific node
+kubectl get po -A -o wide --field-selector spec.nodeName=
+
+Copy file from Pod to the workstation
+kubectl cp <namespace>/<pod name>:<file_path> EG: kubectl cp default/test:/var/log/messages
+
+Total memory usage of all the Pods
+kubectl top po -A | awk '{print $4}' | sed 1d | tr -d 'Mi' | awk 'BEGIN {total=0;}{total+=$1;}END {print "Total Memory Usage of all the Pods:",total, "Mi"}'
+
+Total CPU usage of all the Pods
+kubectl top po -A | awk '{print $3}' | sed 1d | tr -d 'm' | awk 'BEGIN {total=0;}{total+=$1;}END {print "Total CPU Usage of all the Pods: ",total, "m"}'
+
+Total memory usage of all the Pods on a specific node
+kubectl get po -A --field-selector spec.nodeName=<node_name>,status.phase==Running -o wide | sed 1d | awk '{print $1" "$2}' | while read namespace pod; do kubectl top pods --no-headers --namespace $namespace $pod; done | awk '{print $3}' | tr -d 'Mi' | awk 'BEGIN {total=0;}{total+=$1;}END {print "Total Memory Usage of all the Pods on this Node:",total, "Mi"}'
+
+Total CPU usage of all the Pods on a specific node
+kubectl get po -A --field-selector spec.nodeName=<node_name>,status.phase==Running -o wide | sed 1d | awk '{print $1" "$2}' | while read namespace pod; do kubectl top pods --no-headers --namespace $namespace $pod; done | awk '{print $2}' | tr -d 'm' | awk 'BEGIN {total=0;}{total+=$1;}END {print "Total CPU Usage of all the Pods on this Node: ",total, "m"}'
+
+Gets scheduler; controller-manager and etcd status
+kubectl get componentstatus
+
+Set WARM_IP_TARGET
+kubectl set env daemonset aws-node -n kube-system WARM_IP_TARGET=10
+
+Verify:
+kubectl get ds aws-node -n kube-system -o yaml | grep WARM_IP_TARGET kubectl get ds aws-node -n kube-system -o yaml | grep -A1 WARM_IP_TARGET
+
+Troubleshooting and information gathering:
+List coredns pods and find which workers coredns is running on kubectl get pod -n kube-system -o wide -l eks.amazonaws.com/component=coredns
+
+Fetch the coredns pod name COREDNS_POD=$(kubectl get pod -n kube-system -l eks.amazonaws.com/component=coredns -o jsonpath='{.items[0].metadata.name}')
+
+Query the pod for metrics kubectl get --raw /api/v1/namespaces/kube-system/pods/$COREDNS_POD:9153/proxy/metrics | grep 'coredns_dns_request_count_total'
+
+Get coredns configmap file kubectl get cm coredns -o yaml -n kube-system 
+
+Coredns logs for p in $(kubectl get pods --namespace=kube-system -l k8s-app=kube-dns -o name); do kubectl logs --namespace=kube-system $p; done
+
+Coredns deployment kubectl -n kube-system get deploy coredns -o yaml
+
+coreDNS version
+kubectl describe deployment coredns --namespace kube-system | grep Image | cut -d "/" -f 3
+
+_CNI version _
+kubectl describe daemonset aws-node --namespace kube-system | grep Image | cut -d "/" -f 2
+
+kube-proxy version
+kubectl describe daemonset kube-proxy --namespace kube-system | grep Image | cut -d "/" -f 3
+
+CoreDns pods
+kubectl get po -n kube-system -l k8s-app=kube-dns -o wide
+
+Extract logs from all the coreDNS pods into a file named corednslogs.txt
+for i in $(kubectl get pods --namespace=kube-system -l k8s-app=kube-dns -o name); do echo $i;kubectl logs -n kube-system $i -c coredns >> corednslogs.txt; done;
+
+Pod logs for 'aws-node'
+for i in $(kubectl get pods -n kube-system -o wide -l k8s-app=aws-node | egrep "aws-node" | grep Running | awk '{print $1}'); do echo $i ; kubectl logs $i -n kube-system; echo; done

@@ -33,12 +33,28 @@ eksctl create nodegroup --cluster=eksdemo1 \
                         --node-private-networking       
 IAM policy:
 
-eksctl utils associate-iam-oidc-provider \
-    --region region-code \
-    --cluster <cluter-name> \
-    --approve
-arn::
+Create an IAM role for the AWS LoadBalancer Controller and attach the role to the Kubernetes service account:
+
+# Download IAM Policy
+## Download latest
+curl -o iam_policy_latest.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+## Verify latest
+ls -lrta 
+
+# Create IAM Policy using policy downloaded 
+aws iam create-policy \
+    --policy-name AWSLoadBalancerControllerIAMPolicy \
+    --policy-document file://iam_policy_latest.json
+
+kubectl get sa -n kube-system
+kubectl get sa aws-load-balancer-controller -n kube-system
+
 arn:aws:iam::979090212156:policy/AWSLoadBalancerControllerIAMPolicy
+#OIDC Provider
+eksctl utils associate-iam-oidc-provider \
+    --region us-east-1 \
+    --cluster eks-demo-terraform \
+    --approve
 
 # Template
 eksctl create iamserviceaccount \
@@ -48,6 +64,12 @@ eksctl create iamserviceaccount \
   --attach-policy-arn=arn:aws:iam::979090212156:policy/AWSLoadBalancerControllerIAMPolicy \
   --override-existing-serviceaccounts \
   --approve
+
+#To delete existing SA
+eksctl delete iamserviceaccount \
+  --cluster=eks-demo-terraform \
+  --namespace=kube-system \
+  --name=aws-load-balancer-controller
   
   # Verfy EKS Cluster
 eksctl get cluster
@@ -88,6 +110,8 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --set image.repository=public.ecr.aws/eks/aws-load-balancer-controller
   
 output:
+
+
 NAME: aws-load-balancer-controller
 LAST DEPLOYED: Sat Jul 19 22:17:46 2025
 NAMESPACE: kube-system
