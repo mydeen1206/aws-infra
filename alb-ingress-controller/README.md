@@ -31,6 +31,12 @@ eksctl create nodegroup --cluster=eksdemo1 \
                         --appmesh-access \
                         --alb-ingress-access \
                         --node-private-networking       
+
+kubectl config get-contexts 
+kubectl config view
+kubectl config get-contexts
+kubectl config use-context my-cluster-name 
+
 IAM policy:
 
 Create an IAM role for the AWS LoadBalancer Controller and attach the role to the Kubernetes service account:
