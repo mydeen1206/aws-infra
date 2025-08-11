@@ -48,20 +48,19 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: blog-nginx-nodeport-service
+  name: blog-nginx-service
   labels:
     app: blog-nginx
   # Uncomment if ALB healthcheck requires it
   # annotations:
   #   alb.ingress.kubernetes.io/healthcheck-path: /blog/index.html
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: blog-nginx
   ports:
     - port: 80
-      targetPort: 80
-      nodePort: 30080  # Optional: specify static NodePort between 30000-32767
+      targetPort: 80 
 ---
 # -------------------------------
 # Ingress Resource for blog-nginx via AWS ALB
@@ -92,6 +91,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: blog-nginx-nodeport-service
+                name: blog-nginx-service
                 port:
                   number: 80
