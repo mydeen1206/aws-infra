@@ -60,8 +60,7 @@ spec:
     app: blog-nginx
   ports:
     - port: 80
-      targetPort: 80
-      nodePort: 30080  # Optional: specify static NodePort between 30000-32767
+      targetPort: 80  # Optional: specify static NodePort between 30000-32767
 ---
 # -------------------------------
 # Ingress Resource for blog-nginx via AWS ALB
