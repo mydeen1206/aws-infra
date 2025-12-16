@@ -4,7 +4,7 @@ data "terraform_remote_state" "vpc" {
   backend = "s3"
 
   config = {
-    bucket         = "terraform-bucket-backend-mydeen"
+    bucket         = "terraform-bucket-mydeen-demo"
     key            = "dev/vpc/terraform.tfstate"
     region         = "us-east-1"
   }

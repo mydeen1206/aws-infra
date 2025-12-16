@@ -6,7 +6,7 @@ terraform {
     }
   }
     backend "s3" {
-    bucket         = "terraform-bucket-backend-mydeen"
+    bucket         = "terraform-bucket-mydeen-demo"
     key            = "dev/eks/terraform.tfstate"
     region         = "us-east-1"
   }
